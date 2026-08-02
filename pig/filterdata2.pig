@@ -1,0 +1,1 @@
+-- Reference Pig script for the rate code filter workload

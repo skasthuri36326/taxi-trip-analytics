@@ -1,0 +1,7 @@
+VendorID,tpep_pickup_datetime,tpep_dropoff_datetime,passenger_count,trip_distance,RatecodeID,store_and_fwd_flag,PULocationID,DOLocationID,payment_type,fare_amount,extra,mta_tax,tip_amount,tolls_amount,improvement_surcharge,total_amount
+2,2017-10-01 00:15:30,2017-10-01 00:25:11,1,2.17,1,N,151,239,1,8.5,0.5,0.5,0.0,0.0,0.3,9.8
+1,2017-10-01 00:30:00,2017-10-01 00:44:00,2,3.11,4,N,100,120,2,12.0,0.5,0.5,1.0,0.0,0.3,14.3
+2,2017-10-01 01:00:00,2017-10-01 01:10:00,1,1.20,4,N,142,143,1,7.0,0.0,0.5,0.0,0.0,0.3,7.8
+2,2017-10-01 01:15:00,2017-10-01 01:25:30,3,0.90,2,N,236,237,2,6.5,0.0,0.5,0.0,0.0,0.3,7.3
+1,2017-10-01 02:00:00,2017-10-01 02:13:00,1,4.25,3,N,48,68,4,15.5,0.5,0.5,0.0,0.0,0.3,16.8
+malformed,line,with,too,few,columns

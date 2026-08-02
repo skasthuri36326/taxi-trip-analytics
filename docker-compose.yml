@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+    image: taxi-trip-analytics:latest
+    volumes:
+      - ./output:/app/output
+    command:
+      - --engine
+      - sql
+      - --job
+      - payment
+      - --input
+      - /app/data/sample/yellow_tripdata_sample.csv
+      - --output
+      - /app/output/payment
