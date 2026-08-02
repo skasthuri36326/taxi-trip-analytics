@@ -1,1 +1,0 @@
--- Reference Pig script for the payment type aggregation workload
