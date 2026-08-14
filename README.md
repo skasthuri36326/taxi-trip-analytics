@@ -16,12 +16,13 @@ Taxi Trip Analytics is a distributed batch analytics project for processing NYC 
 
 The project implements equivalent analytical workloads using:
 
-- Apache Spark SQL
-- Apache Spark DataFrames
+- Apache Spark SQL / DataFrames
 - Apache Spark RDD
 - Apache Pig
 
-The implementations use a consistent application architecture and can be executed locally, using Docker, or on a Hadoop cluster using HDFS and YARN.
+The application can run locally, with Docker, or on a Hadoop cluster using HDFS and YARN.
+
+The SQL and RDD implementations perform equivalent analytical operations, allowing their results and execution times to be compared.
 
 ---
 
@@ -32,8 +33,9 @@ The implementations use a consistent application architecture and can be execute
 - Apache Pig implementation
 - Local Spark execution
 - Hadoop HDFS and YARN execution
-- Docker configuration
-- Benchmark utilities
+- Docker support
+- SQL vs RDD benchmark runner
+- CSV benchmark result generation
 - Equivalent SQL and RDD analytical workloads
 - JUnit 5 tests
 - Maven build configuration
@@ -42,11 +44,11 @@ The implementations use a consistent application architecture and can be execute
 
 ## Analytics Jobs
 
-| Job | Description |
-|---|---|
-| Single Record Lookup | Retrieve a taxi trip using multiple business-key filters |
-| Rate Code Filter | Filter records by `RatecodeID` |
-| Payment Type Aggregation | Group records by payment type and calculate counts |
+| Job | CLI Value | Description |
+|---|---|---|
+| Single Record Lookup | `lookup` | Retrieve a taxi trip using multiple business-key filters |
+| Rate Code Filter | `filter` | Filter records by `RatecodeID` |
+| Payment Type Aggregation | `payment` | Group records by payment type and calculate counts |
 
 ---
 
@@ -75,7 +77,6 @@ taxi-trip-analytics/
 │   └── test/
 ├── data/
 │   └── sample/
-├── docker/
 ├── docs/
 ├── pig/
 ├── scripts/
@@ -91,6 +92,7 @@ taxi-trip-analytics/
 
 ```text
 com.proapps.taxianalytics
+├── benchmark
 ├── cli
 ├── config
 ├── jobs
@@ -98,48 +100,29 @@ com.proapps.taxianalytics
 │   └── rdd
 ├── model
 ├── parser
-├── benchmark
 ├── util
 └── exception
 ```
 
 ---
 
-# Dataset
+## Dataset
 
-This project uses the publicly available NYC Taxi & Limousine Commission (TLC) Yellow Taxi Trip dataset.
+The project uses the publicly available NYC Taxi & Limousine Commission (TLC) Yellow Taxi Trip dataset.
 
 Official dataset:
 
 https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page
 
-The sample dataset is stored under:
-
-```text
-data/sample/
-```
-
-The sample dataset is intended for local development and testing.
-
-For large-scale execution, download and use the complete TLC Yellow Taxi Trip dataset.
-
----
-
-## Dataset Setup
-
-Create the local dataset directory if it does not already exist:
-
-```bash
-mkdir -p data/sample
-```
-
-Place the sample Yellow Taxi Trip CSV file at:
+The sample dataset used for local development and testing is located at:
 
 ```text
 data/sample/yellow_tripdata_sample.csv
 ```
 
-For Hadoop execution, the complete dataset can be uploaded to HDFS.
+Use the complete TLC dataset for larger-scale execution and performance evaluation.
+
+### HDFS Dataset Setup
 
 Create the HDFS directory:
 
@@ -147,294 +130,7 @@ Create the HDFS directory:
 hdfs dfs -mkdir -p /user/data/taxi
 ```
 
-Upload Yellow Taxi Trip CSV files:
-
-```bash
-hdfs dfs -put yellow_tripdata_*.csv /user/data/taxi/
-```
-
-Verify that the files were uploaded:
-
-```bash
-hdfs dfs -ls /user/data/taxi
-```
-
----
-
-# Build
-
-Build the project using Maven:
-
-```bash
-mvn clean package
-```
-
-The packaged JAR is generated under:
-
-```text
-target/taxi-trip-analytics-1.0.0.jar
-```
-
-Depending on the Maven configuration, the runnable JAR may also be available as:
-
-```text
-target/taxi-trip-analytics.jar
-```
-
-Run the tests separately with:
-
-```bash
-mvn test
-```
-
----
-
-# Local Execution
-
-## Spark SQL / DataFrame
-
-Run Payment Type Aggregation using Spark SQL:
-
-```bash
-spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
-  --engine sql \
-  --job payment \
-  --input data/sample/yellow_tripdata_sample.csv \
-  --output output/payment-sql
-```
-
-The SQL implementation writes the aggregation result as CSV.
-
-Example:
-
-```text
-payment_type,count
-1,2
-```
-
----
-
-## Spark RDD
-
-Run the equivalent Payment Type Aggregation using Spark RDD:
-
-```bash
-spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
-  --engine rdd \
-  --job payment \
-  --input data/sample/yellow_tripdata_sample.csv \
-  --output output/payment-rdd
-```
-
-The RDD implementation writes the data rows without a CSV header.
-
-Example:
-
-```text
-1,2
-```
-
----
-
-# Using a Local Spark Installation
-
-If Spark is installed under:
-
-```text
-~/opt/spark-3.5.1-bin-hadoop3
-```
-
-run the SQL implementation with:
-
-```bash
-~/opt/spark-3.5.1-bin-hadoop3/bin/spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
-  --engine sql \
-  --job payment \
-  --input data/sample/yellow_tripdata_sample.csv \
-  --output output/payment-sql
-```
-
-Run the RDD implementation with:
-
-```bash
-~/opt/spark-3.5.1-bin-hadoop3/bin/spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
-  --engine rdd \
-  --job payment \
-  --input data/sample/yellow_tripdata_sample.csv \
-  --output output/payment-rdd
-```
-
-The quotes around `'local[*]'` prevent Zsh from interpreting `[*]` as a filename pattern.
-
----
-
-# Compare SQL and RDD Results
-
-The SQL and RDD implementations should produce the same analytical values.
-
-SQL:
-
-```text
-payment_type,count
-1,2
-```
-
-RDD:
-
-```text
-1,2
-```
-
-The SQL implementation writes a CSV header while the RDD implementation writes only the data rows.
-
-Therefore, a direct `diff` will show a difference even when the calculated values are identical.
-
-Compare only the data rows:
-
-```bash
-diff \
-  <(tail -n +2 output/payment-sql/part-*) \
-  <(cat output/payment-rdd/part-*)
-```
-
-If there is no output from `diff`, the SQL and RDD analytical results are identical.
-
----
-
-# Inspect Spark Output
-
-Spark output directories normally contain files such as:
-
-```text
-_SUCCESS
-part-00000-*.csv
-*.crc
-```
-
-The actual analytical results are stored in the `part-*` files.
-
-Inspect the SQL result:
-
-```bash
-cat output/payment-sql/part-*
-```
-
-Inspect the RDD result:
-
-```bash
-cat output/payment-rdd/part-*
-```
-
----
-
-# Docker Execution
-
-The project can also be executed locally using Docker.
-
-## Docker Compose
-
-Build the Docker image and start the application:
-
-```bash
-docker compose up --build
-```
-
-The Docker configuration uses:
-
-- Maven with Java 17 for building
-- Apache Spark 3.5.1 with Java 17 for execution
-- The project JAR
-- The sample dataset
-
-Spark runs in local mode inside the container.
-
----
-
-## Build Docker Image Directly
-
-```bash
-docker build -t taxi-trip-analytics .
-```
-
----
-
-## Run Spark SQL Using Docker
-
-```bash
-docker run --rm \
-  taxi-trip-analytics \
-  --engine sql \
-  --job payment \
-  --input /app/data/sample/yellow_tripdata_sample.csv \
-  --output /app/output/payment-sql
-```
-
----
-
-## Run Spark RDD Using Docker
-
-```bash
-docker run --rm \
-  taxi-trip-analytics \
-  --engine rdd \
-  --job payment \
-  --input /app/data/sample/yellow_tripdata_sample.csv \
-  --output /app/output/payment-rdd
-```
-
----
-
-## Docker Output
-
-When running with Docker Compose, output is written under:
-
-```text
-/app/output/
-```
-
-For example:
-
-```text
-/app/output/payment-sql/
-/app/output/payment-rdd/
-```
-
-Spark normally creates:
-
-```text
-_SUCCESS
-part-00000-*.csv
-```
-
-Associated checksum files may also be generated by the underlying filesystem.
-
----
-
-# Hadoop Cluster Execution
-
-The application can be executed against a Hadoop cluster using HDFS and YARN.
-
-## Upload Dataset to HDFS
-
-Create the HDFS directory:
-
-```bash
-hdfs dfs -mkdir -p /user/data/taxi
-```
-
-Upload the taxi dataset:
+Upload the dataset:
 
 ```bash
 hdfs dfs -put yellow_tripdata_*.csv /user/data/taxi/
@@ -448,310 +144,180 @@ hdfs dfs -ls /user/data/taxi
 
 ---
 
-# Single Record Lookup
+## Build
 
-Run the Single Record Lookup Spark job:
-
-```bash
-spark-submit \
-  --master yarn \
-  --deploy-mode client \
-  --class com.proapps.taxianalytics.jobs.SingleRecordLookupJob \
-  target/taxi-trip-analytics.jar \
-  /user/data/taxi \
-  /user/output/spark_single_row_lookup_output
-```
-
-Verify the output:
-
-```bash
-hadoop fs -ls /user/output/spark_single_row_lookup_output
-```
-
-Display the result:
-
-```bash
-hadoop fs -cat /user/output/spark_single_row_lookup_output/part*
-```
-
-Count the output records:
-
-```bash
-hadoop fs -cat /user/output/spark_single_row_lookup_output/part* | wc -l
-```
-
----
-
-# Rate Code Filter
-
-Run the Rate Code Filter Spark job:
-
-```bash
-spark-submit \
-  --master yarn \
-  --deploy-mode client \
-  --class com.proapps.taxianalytics.jobs.RateCodeFilterJob \
-  target/taxi-trip-analytics.jar \
-  /user/data/taxi \
-  /user/output/spark_filtered_output
-```
-
-Verify the output:
-
-```bash
-hadoop fs -ls /user/output/spark_filtered_output
-```
-
-Display the result:
-
-```bash
-hadoop fs -cat /user/output/spark_filtered_output/part*
-```
-
-Count the output records:
-
-```bash
-hadoop fs -cat /user/output/spark_filtered_output/part* | wc -l
-```
-
----
-
-# Payment Type Aggregation
-
-Run the Payment Type Aggregation Spark job:
-
-```bash
-spark-submit \
-  --master yarn \
-  --deploy-mode client \
-  --class com.proapps.taxianalytics.jobs.PaymentTypeAnalyticsJob \
-  target/taxi-trip-analytics.jar \
-  /user/data/taxi \
-  /user/output/spark_grouped_output
-```
-
-Verify the output:
-
-```bash
-hadoop fs -ls /user/output/spark_grouped_output
-```
-
-Display the result:
-
-```bash
-hadoop fs -cat /user/output/spark_grouped_output/part*
-```
-
-Spark writes output as one or more `part-*` files.
-
----
-
-# Apache Pig
-
-Equivalent Apache Pig implementations are provided for the analytical workloads.
-
-Available scripts:
-
-```text
-pig/
-├── single-record-lookup.pig
-├── ratecode-filter.pig
-└── payment-type-analytics.pig
-```
-
-The Pig scripts read input data from HDFS and write the analytical results back to HDFS.
-
-## Run Payment Type Analytics with Pig
-
-```bash
-pig pig/payment-type-analytics.pig
-```
-
-The script performs the equivalent payment type aggregation using Apache Pig.
-
----
-
-# SQL and RDD Equivalence
-
-The Spark SQL and Spark RDD implementations are designed to perform equivalent analytical operations.
-
-For the Payment Type Aggregation workload, both implementations:
-
-1. Read the Yellow Taxi Trip CSV data.
-2. Extract the payment type.
-3. Group records by payment type.
-4. Count the number of records for each payment type.
-5. Write the resulting aggregation.
-
-The SQL implementation uses Spark SQL/DataFrame operations.
-
-The RDD implementation uses Spark RDD transformations and actions.
-
-The expected analytical values are therefore equivalent even though the output formatting differs.
-
-SQL:
-
-```text
-payment_type,count
-1,2
-```
-
-RDD:
-
-```text
-1,2
-```
-
-The difference is the CSV header generated by the SQL/DataFrame writer, not the analytical result.
-
----
-
-# Performance Evaluation
-
-The repository includes benchmark utilities for comparing:
-
-- Spark SQL
-- Spark RDD
-- Apache Pig
-
-The workloads use equivalent analytical operations and the same input dataset so processing performance can be compared.
-
-Performance measurements can include:
-
-- Execution time
-- Input size
-- Output size
-- Processing engine
-- Analytical workload
-
-Additional benchmark information is available in:
-
-```text
-docs/Performance-Comparison.md
-```
-
----
-
-# Output Format
-
-Spark writes results using its distributed output format.
-
-Typical SQL output:
-
-```text
-output/payment-sql/
-├── _SUCCESS
-└── part-00000-*.csv
-```
-
-Typical RDD output:
-
-```text
-output/payment-rdd/
-├── _SUCCESS
-└── part-00000-*
-```
-
-Additional `.crc` files may be generated depending on the filesystem and environment.
-
-The important files for inspecting analytical results are the `part-*` files.
-
----
-
-# Testing
-
-Run the complete Maven test suite:
-
-```bash
-mvn test
-```
-
-The project uses JUnit 5 for unit testing.
-
-For example, the CSV parser test verifies that a valid CSV line can be parsed into the expected number of fields.
-
----
-
-# Application Usage
-
-The application accepts the following main parameters:
-
-```text
---engine
---job
---input
---output
-```
-
-Example SQL configuration:
-
-```bash
---engine sql
---job payment
---input data/sample/yellow_tripdata_sample.csv
---output output/payment-sql
-```
-
-Example RDD configuration:
-
-```bash
---engine rdd
---job payment
---input data/sample/yellow_tripdata_sample.csv
---output output/payment-rdd
-```
-
----
-
-# Reproducible Local Workflow
-
-The complete local workflow can be performed using the following commands.
-
-## 1. Build
+Build the project:
 
 ```bash
 mvn clean package
 ```
 
-## 2. Run SQL
+The application JAR is generated at:
+
+```text
+target/taxi-trip-analytics-1.0.0.jar
+```
+
+---
+
+## Local Execution
+
+Use the generic Spark helper script to run SQL or RDD workloads:
 
 ```bash
-~/opt/spark-3.5.1-bin-hadoop3/bin/spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
+./scripts/run-spark.sh \
   --engine sql \
   --job payment \
   --input data/sample/yellow_tripdata_sample.csv \
   --output output/payment-sql
 ```
 
-## 3. Run RDD
+Change the parameters to run a different engine or workload.
 
-```bash
-~/opt/spark-3.5.1-bin-hadoop3/bin/spark-submit \
-  --class com.proapps.taxianalytics.cli.Application \
-  --master 'local[*]' \
-  target/taxi-trip-analytics.jar \
-  --engine rdd \
-  --job payment \
-  --input data/sample/yellow_tripdata_sample.csv \
-  --output output/payment-rdd
+### Parameters
+
+| Parameter | Values | Description |
+|---|---|---|
+| `--engine` | `sql`, `rdd` | Spark processing API |
+| `--job` | `lookup`, `filter`, `payment` | Analytical workload |
+| `--input` | CSV path | Input dataset |
+| `--output` | Directory path | Output location |
+
+For example, to run the same workload using RDD, change:
+
+```text
+--engine sql
 ```
 
-## 4. Inspect SQL Result
+to:
 
-```bash
-cat output/payment-sql/part-*
+```text
+--engine rdd
 ```
 
-## 5. Inspect RDD Result
+and change the output directory accordingly:
 
-```bash
-cat output/payment-rdd/part-*
+```text
+--output output/payment-rdd
 ```
 
-## 6. Compare Analytical Results
+To run another workload, change:
+
+```text
+--job payment
+```
+
+to either:
+
+```text
+--job lookup
+```
+
+or:
+
+```text
+--job filter
+```
+
+---
+
+## Benchmark
+
+The benchmark runner compares equivalent Spark SQL and Spark RDD implementations.
+
+It executes:
+
+| Workload | SQL | RDD |
+|---|---|---|
+| Single Record Lookup | Yes | Yes |
+| Rate Code Filter | Yes | Yes |
+| Payment Type Aggregation | Yes | Yes |
+
+Execution time is measured in milliseconds.
+
+### Run Benchmark
+
+```bash
+./scripts/run-benchmark.sh
+```
+
+The script builds the application and runs the complete SQL/RDD benchmark suite against the sample dataset.
+
+Equivalent application parameters are:
+
+```text
+--engine benchmark
+--job all
+--input data/sample/yellow_tripdata_sample.csv
+--output output/benchmark
+```
+
+### Benchmark Output
+
+Example console output:
+
+```text
+Benchmark timings (ms):
+sql.lookup = 1611
+sql.filter = 191
+sql.payment = 466
+rdd.lookup = 120
+rdd.filter = 66
+rdd.payment = 136
+```
+
+The benchmark results are also written to:
+
+```text
+output/benchmark/benchmark-results.csv
+```
+
+Example:
+
+```csv
+workload,time_ms
+sql.lookup,1611
+sql.filter,191
+sql.payment,466
+rdd.lookup,120
+rdd.filter,66
+rdd.payment,136
+```
+
+The `output/` directory contains generated runtime results and is excluded from version control.
+
+> **Note:** Benchmark timings depend on machine resources, JVM and Spark startup overhead, filesystem state, dataset size, and runtime conditions. Use repeated runs under the same environment for meaningful performance comparisons.
+
+---
+
+## SQL and RDD Equivalence
+
+The SQL and RDD implementations perform equivalent analytical operations.
+
+For example, Payment Type Aggregation:
+
+1. Reads the Yellow Taxi Trip CSV data.
+2. Extracts the payment type.
+3. Groups records by payment type.
+4. Counts records for each payment type.
+5. Writes the aggregation result.
+
+Example SQL output:
+
+```text
+payment_type,count
+1,2
+```
+
+Equivalent RDD output:
+
+```text
+1,2
+```
+
+The SQL/DataFrame writer includes a CSV header while the RDD implementation writes the analytical data rows.
+
+Compare the values with:
 
 ```bash
 diff \
@@ -759,19 +325,55 @@ diff \
   <(cat output/payment-rdd/part-*)
 ```
 
-No output from `diff` indicates that the SQL and RDD data values match.
+No output from `diff` indicates that the SQL and RDD analytical values match.
 
 ---
 
-# Docker Workflow
+## Output Format
 
-## 1. Build and Start
+Spark writes results as distributed output directories.
 
-```bash
-docker compose up --build
+Example:
+
+```text
+output/
+├── payment-sql/
+│   ├── _SUCCESS
+│   └── part-00000-*.csv
+└── payment-rdd/
+    ├── _SUCCESS
+    └── part-00000-*
 ```
 
-## 2. Run SQL
+Inspect a result using:
+
+```bash
+cat output/payment-sql/part-*
+```
+
+Change the path to inspect another workload or engine.
+
+Generated files under `output/` are excluded from version control.
+
+---
+
+## Docker Execution
+
+Build and run the Docker environment:
+
+```bash
+./scripts/run-docker.sh
+```
+
+Equivalent command:
+
+```bash
+docker compose up --build --remove-orphans
+```
+
+The Docker configuration provides the Java and Spark runtime, application JAR, and sample dataset.
+
+To run a workload directly:
 
 ```bash
 docker run --rm \
@@ -782,31 +384,152 @@ docker run --rm \
   --output /app/output/payment-sql
 ```
 
-## 3. Run RDD
+Change `--engine`, `--job`, and `--output` in the same way as local execution.
+
+---
+
+## Hadoop / YARN Execution
+
+The same application can run on a Hadoop cluster using HDFS and YARN.
+
+After uploading the dataset to HDFS, submit a job with:
 
 ```bash
-docker run --rm \
-  taxi-trip-analytics \
-  --engine rdd \
+spark-submit \
+  --master yarn \
+  --deploy-mode client \
+  --class com.proapps.taxianalytics.cli.Application \
+  target/taxi-trip-analytics-1.0.0.jar \
+  --engine sql \
   --job payment \
-  --input /app/data/sample/yellow_tripdata_sample.csv \
-  --output /app/output/payment-rdd
+  --input /user/data/taxi \
+  --output /user/output/payment-sql
+```
+
+Change `--engine`, `--job`, `--input`, and `--output` to run other workloads.
+
+Inspect the result with:
+
+```bash
+hadoop fs -cat /user/output/payment-sql/part*
 ```
 
 ---
 
-# Roadmap
+## Apache Pig
 
-- Parameterized job configuration
-- Parameterized Apache Pig scripts
+Equivalent Apache Pig implementations are available for the three analytical workloads:
+
+```text
+pig/
+├── single-record-lookup.pig
+├── ratecode-filter.pig
+└── payment-type-analytics.pig
+```
+
+For example:
+
+```bash
+pig pig/payment-type-analytics.pig
+```
+
+The Pig implementations operate against HDFS and are separate from the Java SQL/RDD benchmark runner.
+
+---
+
+## Scripts
+
+Helper scripts are available under:
+
+```text
+scripts/
+├── run-benchmark.sh
+├── run-docker.sh
+└── run-spark.sh
+```
+
+### `run-spark.sh`
+
+Generic local Spark launcher.
+
+```bash
+./scripts/run-spark.sh \
+  --engine sql \
+  --job payment \
+  --input data/sample/yellow_tripdata_sample.csv \
+  --output output/payment-sql
+```
+
+Change the parameters to run other SQL or RDD workloads.
+
+### `run-benchmark.sh`
+
+Runs the complete SQL/RDD benchmark:
+
+```bash
+./scripts/run-benchmark.sh
+```
+
+### `run-docker.sh`
+
+Builds and starts the Docker environment:
+
+```bash
+./scripts/run-docker.sh
+```
+
+---
+
+## Testing
+
+The project uses JUnit 5.
+
+Run the test suite:
+
+```bash
+mvn test
+```
+
+---
+
+## Performance Evaluation
+
+The benchmark runner compares equivalent Spark SQL and Spark RDD workloads using the same input dataset.
+
+Measurements include:
+
+- Execution time
+- Processing engine
+- Analytical workload
+
+For meaningful comparisons:
+
+- Use the same dataset.
+- Use the same Spark configuration.
+- Run each benchmark multiple times.
+- Account for JVM and Spark startup overhead.
+- Record the machine and dataset size when publishing results.
+
+Additional information is available in:
+
+```text
+docs/Performance-Comparison.md
+```
+
+---
+
+## Roadmap
+
 - Additional Spark SQL analytical workloads
+- Parameterized Apache Pig scripts
+- Repeated benchmark runs and aggregate statistics
+- Automated benchmark reporting
 - Apache Spark standalone deployment
 - Amazon EMR deployment
-- Automated benchmark reporting
 - Extended integration testing
 
 ---
 
-# License
+## License
 
 This project is licensed under the MIT License.

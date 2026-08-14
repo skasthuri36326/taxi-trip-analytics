@@ -1,13 +1,26 @@
+# Maven build output
 target/
-.idea/
-.vscode/
-*.iml
-.DS_Store
 
+# Spark generated output
+output/
+
+# Spark local state
 spark-warehouse/
 metastore_db/
 derby.log
 
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Logs
 *.log
+
+# Local Maven configuration
 settings.xml
+
 .github/
