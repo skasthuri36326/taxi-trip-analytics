@@ -22,7 +22,7 @@ The project implements equivalent analytical workloads using:
 
 The application can run locally, with Docker, or on a Hadoop cluster using HDFS and YARN.
 
-The SQL and RDD implementations perform equivalent analytical operations, allowing their results and execution times to be compared.
+The Spark SQL and RDD implementations perform equivalent analytical operations, allowing their results and execution performance to be compared.
 
 ---
 
@@ -35,7 +35,7 @@ The SQL and RDD implementations perform equivalent analytical operations, allowi
 - Hadoop HDFS and YARN execution
 - Docker support
 - SQL vs RDD benchmark runner
-- CSV benchmark result generation
+- Benchmark results written to CSV
 - Equivalent SQL and RDD analytical workloads
 - JUnit 5 tests
 - Maven build configuration
@@ -81,7 +81,7 @@ taxi-trip-analytics/
 ├── pig/
 ├── scripts/
 ├── benchmarks/
-├── output/
+├── output/              # generated; ignored by Git
 ├── pom.xml
 ├── Dockerfile
 ├── docker-compose.yml
@@ -108,7 +108,7 @@ com.proapps.taxianalytics
 
 ## Dataset
 
-The project uses the publicly available NYC Taxi & Limousine Commission (TLC) Yellow Taxi Trip dataset.
+This project uses the publicly available NYC Taxi & Limousine Commission (TLC) Yellow Taxi Trip dataset.
 
 Official dataset:
 
@@ -146,7 +146,7 @@ hdfs dfs -ls /user/data/taxi
 
 ## Build
 
-Build the project:
+Build the project using Maven:
 
 ```bash
 mvn clean package
@@ -162,7 +162,7 @@ target/taxi-trip-analytics-1.0.0.jar
 
 ## Local Execution
 
-Use the generic Spark helper script to run SQL or RDD workloads:
+Use the generic Spark helper script to run an analytical workload:
 
 ```bash
 ./scripts/run-spark.sh \
@@ -172,7 +172,7 @@ Use the generic Spark helper script to run SQL or RDD workloads:
   --output output/payment-sql
 ```
 
-Change the parameters to run a different engine or workload.
+Change the parameters to select a different processing engine or workload.
 
 ### Parameters
 
@@ -183,7 +183,7 @@ Change the parameters to run a different engine or workload.
 | `--input` | CSV path | Input dataset |
 | `--output` | Directory path | Output location |
 
-For example, to run the same workload using RDD, change:
+To use the RDD implementation, change:
 
 ```text
 --engine sql
@@ -195,39 +195,31 @@ to:
 --engine rdd
 ```
 
-and change the output directory accordingly:
+and use an appropriate output path, for example:
 
 ```text
 --output output/payment-rdd
 ```
 
-To run another workload, change:
+To select another workload, change `--job` to one of:
 
 ```text
---job payment
+lookup
+filter
+payment
 ```
 
-to either:
-
-```text
---job lookup
-```
-
-or:
-
-```text
---job filter
-```
+The same command structure is used for all SQL and RDD workloads.
 
 ---
 
 ## Benchmark
 
-The benchmark runner compares equivalent Spark SQL and Spark RDD implementations.
+The project includes a benchmark runner for comparing equivalent Spark SQL and Spark RDD workloads.
 
-It executes:
+The benchmark executes:
 
-| Workload | SQL | RDD |
+| Workload | Spark SQL | Spark RDD |
 |---|---|---|
 | Single Record Lookup | Yes | Yes |
 | Rate Code Filter | Yes | Yes |
@@ -241,9 +233,9 @@ Execution time is measured in milliseconds.
 ./scripts/run-benchmark.sh
 ```
 
-The script builds the application and runs the complete SQL/RDD benchmark suite against the sample dataset.
+The script builds the application and executes all SQL and RDD analytical workloads against the sample dataset.
 
-Equivalent application parameters are:
+Benchmark mode uses:
 
 ```text
 --engine benchmark
@@ -254,45 +246,33 @@ Equivalent application parameters are:
 
 ### Benchmark Output
 
-Example console output:
-
-```text
-Benchmark timings (ms):
-sql.lookup = 1611
-sql.filter = 191
-sql.payment = 466
-rdd.lookup = 120
-rdd.filter = 66
-rdd.payment = 136
-```
-
-The benchmark results are also written to:
+Benchmark results are written to:
 
 ```text
 output/benchmark/benchmark-results.csv
 ```
 
-Example:
+The CSV contains the execution time for each workload:
 
 ```csv
 workload,time_ms
-sql.lookup,1611
-sql.filter,191
-sql.payment,466
-rdd.lookup,120
-rdd.filter,66
-rdd.payment,136
+sql.lookup,<time>
+sql.filter,<time>
+sql.payment,<time>
+rdd.lookup,<time>
+rdd.filter,<time>
+rdd.payment,<time>
 ```
 
-The `output/` directory contains generated runtime results and is excluded from version control.
+Generated benchmark results are excluded from version control.
 
-> **Note:** Benchmark timings depend on machine resources, JVM and Spark startup overhead, filesystem state, dataset size, and runtime conditions. Use repeated runs under the same environment for meaningful performance comparisons.
+> **Note:** Benchmark timings vary depending on the dataset, machine resources, Spark/JVM startup overhead, filesystem state, and runtime environment. Use repeated runs under the same conditions for meaningful performance comparisons.
 
 ---
 
 ## SQL and RDD Equivalence
 
-The SQL and RDD implementations perform equivalent analytical operations.
+The Spark SQL and Spark RDD implementations perform equivalent analytical operations.
 
 For example, Payment Type Aggregation:
 
@@ -315,9 +295,9 @@ Equivalent RDD output:
 1,2
 ```
 
-The SQL/DataFrame writer includes a CSV header while the RDD implementation writes the analytical data rows.
+The SQL/DataFrame writer includes a CSV header while the RDD output contains the analytical data rows.
 
-Compare the values with:
+Compare the analytical values with:
 
 ```bash
 diff \
@@ -329,9 +309,9 @@ No output from `diff` indicates that the SQL and RDD analytical values match.
 
 ---
 
-## Output Format
+## Output
 
-Spark writes results as distributed output directories.
+Spark writes analytical results as distributed output directories.
 
 Example:
 
@@ -345,19 +325,19 @@ output/
     └── part-00000-*
 ```
 
-Inspect a result using:
+Inspect a result with:
 
 ```bash
 cat output/payment-sql/part-*
 ```
 
-Change the path to inspect another workload or engine.
+Change the path to inspect another engine or workload.
 
-Generated files under `output/` are excluded from version control.
+The `output/` directory contains generated runtime data and is excluded from version control.
 
 ---
 
-## Docker Execution
+## Docker
 
 Build and run the Docker environment:
 
@@ -371,9 +351,14 @@ Equivalent command:
 docker compose up --build --remove-orphans
 ```
 
-The Docker configuration provides the Java and Spark runtime, application JAR, and sample dataset.
+The Docker configuration provides:
 
-To run a workload directly:
+- Java 17
+- Apache Spark 3.5.1
+- The packaged application JAR
+- The sample dataset
+
+To run an analytical workload directly:
 
 ```bash
 docker run --rm \
@@ -386,13 +371,21 @@ docker run --rm \
 
 Change `--engine`, `--job`, and `--output` in the same way as local execution.
 
+Docker-generated output is written under:
+
+```text
+/app/output/
+```
+
+When the output directory is mounted to the host, the results are available under the local `output/` directory.
+
 ---
 
-## Hadoop / YARN Execution
+## Hadoop / YARN
 
-The same application can run on a Hadoop cluster using HDFS and YARN.
+The application can also run on a Hadoop cluster using HDFS and YARN.
 
-After uploading the dataset to HDFS, submit a job with:
+After uploading the dataset to HDFS, submit a workload with:
 
 ```bash
 spark-submit \
@@ -408,7 +401,13 @@ spark-submit \
 
 Change `--engine`, `--job`, `--input`, and `--output` to run other workloads.
 
-Inspect the result with:
+Verify the output:
+
+```bash
+hadoop fs -ls /user/output/payment-sql
+```
+
+Inspect the result:
 
 ```bash
 hadoop fs -cat /user/output/payment-sql/part*
@@ -418,7 +417,7 @@ hadoop fs -cat /user/output/payment-sql/part*
 
 ## Apache Pig
 
-Equivalent Apache Pig implementations are available for the three analytical workloads:
+Equivalent Apache Pig implementations are provided for the analytical workloads:
 
 ```text
 pig/
@@ -427,13 +426,17 @@ pig/
 └── payment-type-analytics.pig
 ```
 
+The Pig scripts read input data from HDFS and write analytical results back to HDFS.
+
 For example:
 
 ```bash
 pig pig/payment-type-analytics.pig
 ```
 
-The Pig implementations operate against HDFS and are separate from the Java SQL/RDD benchmark runner.
+The Apache Pig implementations are separate from the Java benchmark runner.
+
+The current benchmark runner compares Spark SQL and Spark RDD workloads.
 
 ---
 
@@ -450,7 +453,7 @@ scripts/
 
 ### `run-spark.sh`
 
-Generic local Spark launcher.
+Generic local Spark launcher:
 
 ```bash
 ./scripts/run-spark.sh \
@@ -460,11 +463,11 @@ Generic local Spark launcher.
   --output output/payment-sql
 ```
 
-Change the parameters to run other SQL or RDD workloads.
+Change the parameters to run another SQL or RDD workload.
 
 ### `run-benchmark.sh`
 
-Runs the complete SQL/RDD benchmark:
+Builds the application and runs the complete SQL/RDD benchmark:
 
 ```bash
 ./scripts/run-benchmark.sh
@@ -472,7 +475,7 @@ Runs the complete SQL/RDD benchmark:
 
 ### `run-docker.sh`
 
-Builds and starts the Docker environment:
+Builds and starts the Docker Compose environment:
 
 ```bash
 ./scripts/run-docker.sh
@@ -482,9 +485,9 @@ Builds and starts the Docker environment:
 
 ## Testing
 
-The project uses JUnit 5.
+The project uses JUnit 5 for automated testing.
 
-Run the test suite:
+Run the complete test suite:
 
 ```bash
 mvn test
@@ -496,21 +499,21 @@ mvn test
 
 The benchmark runner compares equivalent Spark SQL and Spark RDD workloads using the same input dataset.
 
-Measurements include:
+For meaningful performance comparisons:
 
-- Execution time
-- Processing engine
-- Analytical workload
-
-For meaningful comparisons:
-
-- Use the same dataset.
-- Use the same Spark configuration.
-- Run each benchmark multiple times.
+- Use the same dataset for each implementation.
+- Use the same machine and Spark configuration.
+- Run benchmarks multiple times.
 - Account for JVM and Spark startup overhead.
-- Record the machine and dataset size when publishing results.
+- Record the environment and dataset size when publishing results.
 
-Additional information is available in:
+Benchmark results are generated at runtime under:
+
+```text
+output/benchmark/
+```
+
+Additional performance documentation is available in:
 
 ```text
 docs/Performance-Comparison.md
@@ -520,7 +523,7 @@ docs/Performance-Comparison.md
 
 ## Roadmap
 
-- Additional Spark SQL analytical workloads
+- Additional Spark analytical workloads
 - Parameterized Apache Pig scripts
 - Repeated benchmark runs and aggregate statistics
 - Automated benchmark reporting

@@ -23,4 +23,4 @@ derby.log
 # Local Maven configuration
 settings.xml
 
-.github/
+.github/modernize/
